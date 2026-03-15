@@ -4,6 +4,16 @@ Salesforce subagent definitions for Claude Code. A 7-agent DevOps workflow cover
 
 ---
 
+## Quick Start
+
+```bash
+curl -O https://raw.githubusercontent.com/UserBasheer/sf-agents/main/scripts/setup-sf-agents.sh && chmod +x setup-sf-agents.sh && ./setup-sf-agents.sh
+```
+
+Run this from the root of any Salesforce DX project. That's it.
+
+---
+
 ## Workflow
 
 ```
