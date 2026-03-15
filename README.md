@@ -71,7 +71,7 @@ open CLAUDE.md
 
 In `CLAUDE.md` fill in:
 - `API Version` — check your `sfdx-project.json`
-- `Field prefix` — e.g. `TAG_` for Aspen Group, or your org-specific prefix
+- `Field prefix` — your org-specific prefix (e.g. `WORK_`, `PROD_`, or leave blank if none)
 
 ### What the setup script installs
 
@@ -121,9 +121,9 @@ chmod +x update-sf-agents.sh
 Each project gets its own memory — nothing crosses between projects:
 
 ```
-project-A/  (TAG work)
+project-A/  (work org)
 └── .claude/agent-memory-local/
-    └── salesforce-developer/MEMORY.md  ← TAG patterns only
+    └── salesforce-developer/MEMORY.md  ← work org patterns only
 
 project-B/  (personal org)
 └── .claude/agent-memory-local/
