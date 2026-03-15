@@ -1,0 +1,4 @@
+.claude/agent-memory-local/
+agent-output/
+.sf-agents-tmp/
+.DS_Store
