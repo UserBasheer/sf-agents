@@ -131,27 +131,18 @@ your-project/
 
 ## Update — existing project
 
-Use this when you have already run `setup-sf-agents.sh` in a project and want to pull the latest agent improvements from GitHub.
+Use this when a new version of the agents is released and you want to upgrade your existing project.
 
-**When to run it:**
-- A new version of the agents has been released and you want to upgrade your existing project
-
-**What it does:**
-- Pulls the latest agent `.md` files into `.claude/agents/`
-- Pulls the latest templates into `.claude/templates/`
-- Copies the latest `setup-sf-agents.sh` and `update-sf-agents.sh` scripts into your project root
-- **Never touches** `.claude/agent-memory-local/` or `CLAUDE.md` — your project conventions and learned patterns stay intact
-
-```bash
-curl -O https://raw.githubusercontent.com/UserBasheer/sf-agents/main/scripts/update-sf-agents.sh
-chmod +x update-sf-agents.sh && ./update-sf-agents.sh
-```
-
-After the first run, `update-sf-agents.sh` lives in your project root so future updates are even simpler:
+Since `setup-sf-agents.sh` already copied `update-sf-agents.sh` into your project root, just run:
 
 ```bash
 ./update-sf-agents.sh
 ```
+
+**What it does:**
+- Pulls the latest agent `.md` files into `.claude/agents/`
+- Pulls the latest templates into `.claude/templates/`
+- **Never touches** `.claude/agent-memory-local/` or `CLAUDE.md` — your project conventions and learned patterns stay intact
 
 ---
 
@@ -171,7 +162,14 @@ personal-project/
 
 ## Add to .gitignore
 
+The setup script handles this automatically for new projects. If you are adding agents to an existing project manually, add these two lines to your `.gitignore`:
+
 ```gitignore
 .claude/agent-memory-local/
 agent-output/
 ```
+
+**Why:**
+
+- `.claude/agent-memory-local/` — contains everything the agents learned about your specific project (org conventions, naming patterns, deployment quirks). This is personal to your machine and should never be shared or committed.
+- `agent-output/` — contains temporary runtime files the agents write during each session (`design-requirements.md`, `components-created.md`, etc.). These are regenerated every session and add no value to your git history.
