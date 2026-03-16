@@ -1,6 +1,6 @@
 # sf-agents
 
-Salesforce subagent definitions for Claude Code. A 7-agent DevOps workflow covering design, admin, development, unit testing, code review, deployment, and documentation — with proper Git branching built in.
+Salesforce subagent definitions for Claude Code. A 7-agent DevOps workflow with proper Git branching — branch created before any code is written, deployment only after PR is merged.
 
 ---
 
@@ -10,72 +10,75 @@ Salesforce subagent definitions for Claude Code. A 7-agent DevOps workflow cover
 curl -O https://raw.githubusercontent.com/UserBasheer/sf-agents/main/scripts/setup-sf-agents.sh && chmod +x setup-sf-agents.sh && ./setup-sf-agents.sh
 ```
 
-Run this from the root of any Salesforce DX project. That's it.
+Run from the root of any Salesforce DX project.
 
 ---
 
 ## Prerequisites
 
-Before using these agents, make sure you have the following connected in Claude Code:
+Before using these agents, connect the following in Claude Code (Settings → MCP Servers):
 
 | Tool | Why it's needed |
 |------|----------------|
 | **Claude Code** | Runs the agents |
 | **Salesforce MCP** | Deploys metadata to your org |
-| **GitHub MCP** | Creates branches, pushes code, creates PRs |
+| **GitHub MCP** | Creates branches, pushes code, opens PRs |
 | **Jira MCP** (optional) | Links deployments to tickets |
 
-The GitHub MCP connection is required for the Git branching workflow to function. Without it the developer agent cannot create branches or push code programmatically.
-
-To connect MCPs in Claude Code, go to Settings → MCP Servers and add your connections before running any agent workflow.
+The GitHub MCP connection is required — without it the design agent cannot create branches.
 
 ---
 
 ## How it works
 
-The workflow follows proper Git-based DevOps — the branch is created before any code is written, and deployment only happens after the PR is reviewed and merged to main.
+The design agent creates the feature branch. Every downstream agent commits to that same branch. Deployment only happens after you merge the PR.
 
 ```
 User request
     │
     ▼
 salesforce-design (opus)
-Analyzes request, asks clarifying questions, outputs spec
+Analyzes request → outputs plan → user confirms
+→ creates feature branch → writes branch name to agent-output/current-branch.md
     │
-    ▼ Gate 1: user confirms plan
-    │
+    ▼
     ├──► salesforce-admin (sonnet)
     │    Creates objects, fields, flows, metadata
+    │    Commits to feature branch
     │
     └──► salesforce-developer (opus)
-         1. Creates feature branch FIRST
-         2. Writes Apex, LWC, triggers
-         3. Commits as work progresses
-         4. Pushes branch, shows PR link
+         Reads branch from current-branch.md
+         Writes Apex, LWC, triggers
+         Commits to feature branch
               │
               ▼
     salesforce-unit-testing (sonnet)
-    Writes test classes — narrates each test written
-    90%+ coverage, bulk scenarios for all triggers
+    Reads branch from current-branch.md
+    Writes test classes — narrates each test
+    90%+ coverage, bulk scenarios for triggers
+    Commits to feature branch
               │
               ▼
     salesforce-code-review (sonnet)
-    Reviews for SOQL in loops, security, bulkification
+    Reviews all code on branch — read only
     Verdict: APPROVED / WARNINGS / CHANGES REQUIRED
               │
-              ▼ Gate 2: approved / fix / cancel
+              ▼ Gate: approved / fix / cancel
               │
     salesforce-documentation (sonnet)
-    Saves docs to docs/ folder
+    Reads branch from current-branch.md
+    Writes docs to docs/ folder
+    Commits + pushes final branch state
+    Shows PR link to user
               │
               ▼
     *** User reviews and merges PR on GitHub ***
               │
-              ▼ Gate 3: user confirms PR merged
-              │
+              ▼
     salesforce-devops (opus)
-    Pulls latest main → deploys to org via MCP
-    Runs tests → shows coverage → logs deployment
+    Confirms PR merged → pulls main
+    Deploys to org via Salesforce MCP
+    Runs tests → logs deployment
 ```
 
 ---
@@ -84,37 +87,32 @@ Analyzes request, asks clarifying questions, outputs spec
 
 | Agent | Model | Role |
 |-------|-------|------|
-| `salesforce-design` | opus | Requirements analysis — always first |
-| `salesforce-admin` | sonnet | Declarative/metadata work |
-| `salesforce-developer` | opus | Creates branch first, writes Apex/LWC, commits, pushes |
-| `salesforce-unit-testing` | sonnet | 90%+ coverage, verbose output per test written |
-| `salesforce-code-review` | sonnet | Best practice review before PR merge |
-| `salesforce-documentation` | sonnet | Docs saved to `docs/` |
+| `salesforce-design` | opus | Analyzes request, creates feature branch |
+| `salesforce-admin` | sonnet | Creates metadata, commits to branch |
+| `salesforce-developer` | opus | Writes Apex/LWC, commits to branch |
+| `salesforce-unit-testing` | sonnet | 90%+ coverage, verbose output, commits to branch |
+| `salesforce-code-review` | sonnet | Reviews branch — read only |
+| `salesforce-documentation` | sonnet | Writes docs, commits + pushes final state |
 | `salesforce-devops` | opus | Deploys from main AFTER PR is merged |
 
 ---
 
 ## Setup — new project
 
-Run from the **root of your Salesforce DX project** (where `sfdx-project.json` lives):
-
 ```bash
-# Step 1 — download the setup script
+# Step 1 — download setup script
 curl -O https://raw.githubusercontent.com/UserBasheer/sf-agents/main/scripts/setup-sf-agents.sh
 
-# Step 2 — make it executable
-chmod +x setup-sf-agents.sh
+# Step 2 — run it
+chmod +x setup-sf-agents.sh && ./setup-sf-agents.sh
 
-# Step 3 — run it
-./setup-sf-agents.sh
-
-# Step 4 — fill in your project conventions
+# Step 3 — fill in project conventions
 open CLAUDE.md
 ```
 
-In `CLAUDE.md` fill in:
-- `API Version` — check your `sfdx-project.json`
-- `Field prefix` — your org-specific prefix (e.g. `WORK_` or leave blank)
+Fill in `CLAUDE.md`:
+- `API Version` — from your `sfdx-project.json`
+- `Field prefix` — your org prefix (e.g. `WORK_`) or leave blank
 
 ### What gets installed
 
@@ -125,7 +123,7 @@ your-project/
 │   ├── agents/                        ← 7 agent .md files
 │   ├── templates/                     ← 4 report templates
 │   └── agent-memory-local/            ← isolated per-project memory
-├── agent-output/                      ← runtime files written by agents
+├── agent-output/                      ← runtime files (includes current-branch.md)
 └── docs/                              ← documentation saved here
 ```
 
@@ -133,19 +131,16 @@ your-project/
 
 ## Update — existing project
 
-Pulls latest agent files without touching your project memory or `CLAUDE.md`:
-
 ```bash
 curl -O https://raw.githubusercontent.com/UserBasheer/sf-agents/main/scripts/update-sf-agents.sh
-chmod +x update-sf-agents.sh
-./update-sf-agents.sh
+chmod +x update-sf-agents.sh && ./update-sf-agents.sh
 ```
+
+Safe — never touches your project memory or `CLAUDE.md`.
 
 ---
 
 ## Memory isolation
-
-Each project gets its own memory — nothing crosses between projects:
 
 ```
 work-project/
@@ -159,12 +154,9 @@ personal-project/
 
 ---
 
-## Add to .gitignore in your Salesforce projects
+## Add to .gitignore
 
 ```gitignore
-# Agent memory is project-specific — do not commit
 .claude/agent-memory-local/
-
-# Agent runtime output — regenerated each session
 agent-output/
 ```

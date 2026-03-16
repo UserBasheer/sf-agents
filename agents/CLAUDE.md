@@ -9,40 +9,38 @@ Delegate ALL Salesforce implementation work. Never write `.cls`, `.trigger`, `.x
 ## Workflow
 
 ```
-Design → (Admin + Developer) → Unit Testing → Code Review → Docs
+Design (creates branch) → Admin (commits metadata) → Developer (commits code)
+    → Unit Testing (commits tests) → Code Review → Documentation (commits docs + pushes)
                                                               ↓
-                                              User merges PR on GitHub
+                                                User merges PR on GitHub
                                                               ↓
-                                              DevOps (deploy from main)
+                                                DevOps (deploys from main)
 ```
 
-| Step | Agent | Model | Invoke when |
-|------|-------|-------|-------------|
-| 1 | `salesforce-design` | opus | ALWAYS first |
-| 2 | `salesforce-admin` | sonnet | Design identifies declarative work |
-| 3 | `salesforce-developer` | opus | Design identifies code work — creates branch first |
-| 4 | `salesforce-unit-testing` | sonnet | Any Apex was written |
-| 5 | `salesforce-code-review` | sonnet | After unit testing |
-| 6 | `salesforce-documentation` | sonnet | After code review passes |
-| 7 | `salesforce-devops` | opus | AFTER user confirms PR is merged to main |
+| Step | Agent | Model | Role |
+|------|-------|-------|------|
+| 1 | `salesforce-design` | opus | Analyzes request, creates feature branch |
+| 2 | `salesforce-admin` | sonnet | Creates metadata, commits to branch |
+| 3 | `salesforce-developer` | opus | Writes Apex/LWC, commits to branch |
+| 4 | `salesforce-unit-testing` | sonnet | Writes tests, commits to branch |
+| 5 | `salesforce-code-review` | sonnet | Reviews branch — read only, no commits |
+| 6 | `salesforce-documentation` | sonnet | Writes docs, commits + pushes final branch |
+| 7 | `salesforce-devops` | opus | Deploys from main AFTER PR is merged |
 
 ---
 
-## How the Git flow works
+## Branch flow
 
-1. `salesforce-developer` creates a feature branch BEFORE writing any code
-2. Developer writes code, commits as it progresses, pushes branch
-3. Unit testing and code review run on the branch
-4. Documentation is written
-5. **User merges the PR on GitHub**
-6. User tells Claude Code "PR is merged — deploy"
-7. `salesforce-devops` pulls main and deploys to org
+- `salesforce-design` creates the branch and writes name to `agent-output/current-branch.md`
+- Every agent reads `agent-output/current-branch.md` to know which branch to use
+- All agents except devops commit to the feature branch — never to main
+- `salesforce-devops` only runs after user confirms PR is merged
 
 ---
 
 ## Confirmation gates
 
-- **Gate 1** — After design: show plan, ask yes / no / changes
+- **Gate 1** — After design outputs plan: ask yes / no / changes — branch created after yes
 - **Gate 2** — After code review: show verdict, offer fix / skip / cancel
 - **Gate 3** — Inside devops: confirm PR merged + show component list, ask A / P / C
 
@@ -64,6 +62,7 @@ Trigger pattern:  one trigger per object → handler class
 Deployment:       Salesforce MCP only (no sf/sfdx CLI for deploys)
 Docs location:    docs/
 Agent output:     agent-output/
+Branch file:      agent-output/current-branch.md
 ```
 
 ---
@@ -71,7 +70,7 @@ Agent output:     agent-output/
 ## Code review gate logic
 
 ```
-APPROVED or APPROVED WITH WARNINGS → proceed to docs, then user merges PR
+APPROVED or APPROVED WITH WARNINGS → proceed to documentation
 CHANGES REQUIRED → ask user:
   [F] Fix — send back to salesforce-developer, re-commit, re-review
   [S] Skip — proceed with warning
