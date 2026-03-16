@@ -6,28 +6,37 @@ Delegate ALL Salesforce implementation work. Never write `.cls`, `.trigger`, `.x
 
 ---
 
-## Workflow order
+## Workflow
 
 ```
-Design → (Admin + Developer) → Unit Testing → Code Review → (DevOps ∥ Docs)
-
-DevOps steps:
-  1. Create feature branch
-  2. Commit all files
-  3. Push to GitHub
-  4. Deploy to Salesforce org via MCP
-  5. Notify user to open PR
+Design → (Admin + Developer) → Unit Testing → Code Review → Docs
+                                                              ↓
+                                              User merges PR on GitHub
+                                                              ↓
+                                              DevOps (deploy from main)
 ```
 
 | Step | Agent | Model | Invoke when |
 |------|-------|-------|-------------|
 | 1 | `salesforce-design` | opus | ALWAYS first |
 | 2 | `salesforce-admin` | sonnet | Design identifies declarative work |
-| 3 | `salesforce-developer` | opus | Design identifies code work |
+| 3 | `salesforce-developer` | opus | Design identifies code work — creates branch first |
 | 4 | `salesforce-unit-testing` | sonnet | Any Apex was written |
-| 5 | `salesforce-code-review` | sonnet | After unit testing, before deploy |
-| 6 | `salesforce-devops` | opus | After code review passes — parallel with docs |
-| 7 | `salesforce-documentation` | sonnet | After code review passes — parallel with devops |
+| 5 | `salesforce-code-review` | sonnet | After unit testing |
+| 6 | `salesforce-documentation` | sonnet | After code review passes |
+| 7 | `salesforce-devops` | opus | AFTER user confirms PR is merged to main |
+
+---
+
+## How the Git flow works
+
+1. `salesforce-developer` creates a feature branch BEFORE writing any code
+2. Developer writes code, commits as it progresses, pushes branch
+3. Unit testing and code review run on the branch
+4. Documentation is written
+5. **User merges the PR on GitHub**
+6. User tells Claude Code "PR is merged — deploy"
+7. `salesforce-devops` pulls main and deploys to org
 
 ---
 
@@ -35,7 +44,7 @@ DevOps steps:
 
 - **Gate 1** — After design: show plan, ask yes / no / changes
 - **Gate 2** — After code review: show verdict, offer fix / skip / cancel
-- **Gate 3** — Inside devops agent: show component list, ask A / P / C
+- **Gate 3** — Inside devops: confirm PR merged + show component list, ask A / P / C
 
 ---
 
@@ -62,9 +71,9 @@ Agent output:     agent-output/
 ## Code review gate logic
 
 ```
-APPROVED or APPROVED WITH WARNINGS → proceed to devops + docs
+APPROVED or APPROVED WITH WARNINGS → proceed to docs, then user merges PR
 CHANGES REQUIRED → ask user:
-  [F] Fix — send back to salesforce-developer, then re-review
-  [S] Skip — deploy with warning
+  [F] Fix — send back to salesforce-developer, re-commit, re-review
+  [S] Skip — proceed with warning
   [C] Cancel
 ```

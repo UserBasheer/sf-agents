@@ -1,6 +1,6 @@
 # sf-agents
 
-Salesforce subagent definitions for Claude Code. A 7-agent DevOps workflow covering design, admin, development, unit testing, code review, deployment, and documentation — with full Git branching built in.
+Salesforce subagent definitions for Claude Code. A 7-agent DevOps workflow covering design, admin, development, unit testing, code review, deployment, and documentation — with proper Git branching built in.
 
 ---
 
@@ -14,35 +14,68 @@ Run this from the root of any Salesforce DX project. That's it.
 
 ---
 
-## Workflow
+## Prerequisites
+
+Before using these agents, make sure you have the following connected in Claude Code:
+
+| Tool | Why it's needed |
+|------|----------------|
+| **Claude Code** | Runs the agents |
+| **Salesforce MCP** | Deploys metadata to your org |
+| **GitHub MCP** | Creates branches, pushes code, creates PRs |
+| **Jira MCP** (optional) | Links deployments to tickets |
+
+The GitHub MCP connection is required for the Git branching workflow to function. Without it the developer agent cannot create branches or push code programmatically.
+
+To connect MCPs in Claude Code, go to Settings → MCP Servers and add your connections before running any agent workflow.
+
+---
+
+## How it works
+
+The workflow follows proper Git-based DevOps — the branch is created before any code is written, and deployment only happens after the PR is reviewed and merged to main.
 
 ```
 User request
     │
     ▼
-salesforce-design (opus) ── always first, analyzes and clarifies requirements
+salesforce-design (opus)
+Analyzes request, asks clarifying questions, outputs spec
     │
     ▼ Gate 1: user confirms plan
     │
-    ├──► salesforce-admin (sonnet)      declarative/metadata work
-    └──► salesforce-developer (opus)    Apex, LWC, integrations
-                   │
-                   ▼
-       salesforce-unit-testing (sonnet) 90%+ test coverage
-                   │
-                   ▼
-       salesforce-code-review (sonnet)  best practice review before deploy
-                   │
-                   ▼ Gate 2: approved / warnings / changes required
-                   │
-         ┌─────────┴──────────┐
-         ▼                    ▼
-salesforce-devops (opus)     salesforce-documentation (sonnet)
-  1. Create feature branch   Save docs to docs/ folder
-  2. Commit all files
-  3. Push to GitHub
-  4. Deploy to org via MCP
-  5. Prompt user to open PR
+    ├──► salesforce-admin (sonnet)
+    │    Creates objects, fields, flows, metadata
+    │
+    └──► salesforce-developer (opus)
+         1. Creates feature branch FIRST
+         2. Writes Apex, LWC, triggers
+         3. Commits as work progresses
+         4. Pushes branch, shows PR link
+              │
+              ▼
+    salesforce-unit-testing (sonnet)
+    Writes test classes — narrates each test written
+    90%+ coverage, bulk scenarios for all triggers
+              │
+              ▼
+    salesforce-code-review (sonnet)
+    Reviews for SOQL in loops, security, bulkification
+    Verdict: APPROVED / WARNINGS / CHANGES REQUIRED
+              │
+              ▼ Gate 2: approved / fix / cancel
+              │
+    salesforce-documentation (sonnet)
+    Saves docs to docs/ folder
+              │
+              ▼
+    *** User reviews and merges PR on GitHub ***
+              │
+              ▼ Gate 3: user confirms PR merged
+              │
+    salesforce-devops (opus)
+    Pulls latest main → deploys to org via MCP
+    Runs tests → shows coverage → logs deployment
 ```
 
 ---
@@ -53,17 +86,17 @@ salesforce-devops (opus)     salesforce-documentation (sonnet)
 |-------|-------|------|
 | `salesforce-design` | opus | Requirements analysis — always first |
 | `salesforce-admin` | sonnet | Declarative/metadata work |
-| `salesforce-developer` | opus | Apex, LWC, integrations |
-| `salesforce-unit-testing` | sonnet | 90%+ test coverage |
-| `salesforce-code-review` | sonnet | Best practice review |
-| `salesforce-devops` | opus | Git branch + MCP deploy |
+| `salesforce-developer` | opus | Creates branch first, writes Apex/LWC, commits, pushes |
+| `salesforce-unit-testing` | sonnet | 90%+ coverage, verbose output per test written |
+| `salesforce-code-review` | sonnet | Best practice review before PR merge |
 | `salesforce-documentation` | sonnet | Docs saved to `docs/` |
+| `salesforce-devops` | opus | Deploys from main AFTER PR is merged |
 
 ---
 
 ## Setup — new project
 
-Run these commands from the **root of your Salesforce DX project** (where `sfdx-project.json` lives):
+Run from the **root of your Salesforce DX project** (where `sfdx-project.json` lives):
 
 ```bash
 # Step 1 — download the setup script
@@ -81,9 +114,9 @@ open CLAUDE.md
 
 In `CLAUDE.md` fill in:
 - `API Version` — check your `sfdx-project.json`
-- `Field prefix` — your org-specific prefix (e.g. `WORK_`, `PROD_`, or leave blank if none)
+- `Field prefix` — your org-specific prefix (e.g. `WORK_` or leave blank)
 
-### What the setup script installs
+### What gets installed
 
 ```
 your-project/
@@ -92,18 +125,7 @@ your-project/
 │   ├── agents/                        ← 7 agent .md files
 │   ├── templates/                     ← 4 report templates
 │   └── agent-memory-local/            ← isolated per-project memory
-│       ├── salesforce-design/
-│       ├── salesforce-admin/
-│       ├── salesforce-developer/
-│       ├── salesforce-unit-testing/
-│       ├── salesforce-code-review/
-│       ├── salesforce-devops/
-│       └── salesforce-documentation/
 ├── agent-output/                      ← runtime files written by agents
-│   ├── design-requirements.md
-│   ├── components-created.md
-│   ├── review-verdict.md
-│   └── deployment-log.md
 └── docs/                              ← documentation saved here
 ```
 
@@ -114,13 +136,8 @@ your-project/
 Pulls latest agent files without touching your project memory or `CLAUDE.md`:
 
 ```bash
-# Step 1 — download the update script
 curl -O https://raw.githubusercontent.com/UserBasheer/sf-agents/main/scripts/update-sf-agents.sh
-
-# Step 2 — make it executable
 chmod +x update-sf-agents.sh
-
-# Step 3 — run it
 ./update-sf-agents.sh
 ```
 
@@ -131,24 +148,14 @@ chmod +x update-sf-agents.sh
 Each project gets its own memory — nothing crosses between projects:
 
 ```
-project-A/  (work org)
+work-project/
 └── .claude/agent-memory-local/
     └── salesforce-developer/MEMORY.md  ← work org patterns only
 
-project-B/  (personal org)
+personal-project/
 └── .claude/agent-memory-local/
     └── salesforce-developer/MEMORY.md  ← personal org patterns only
 ```
-
----
-
-## Improving an agent
-
-1. Edit the relevant `.md` file in this repo
-2. Push to GitHub
-3. Run `update-sf-agents.sh` in any project that should get the update
-
-Existing projects keep their current version until you explicitly update them.
 
 ---
 
@@ -161,5 +168,3 @@ Existing projects keep their current version until you explicitly update them.
 # Agent runtime output — regenerated each session
 agent-output/
 ```
-
-Keep `.claude/agents/` and `.claude/templates/` out of gitignore — commit those if you customise them per project.
