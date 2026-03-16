@@ -115,24 +115,27 @@ Wait for explicit response.
 ### Step 7 — Spin up scratch org and validate
 
 ```bash
+# Generate unique scratch org alias using timestamp
+SCRATCH_ALIAS="sf-agents-$(date +%Y%m%d%H%M%S)"
+
 # Create scratch org (1 day lifespan — enough for validation)
 sf org create scratch \
   --definition-file config/project-scratch-def.json \
-  --alias sf-agents-validation \
+  --alias "$SCRATCH_ALIAS" \
   --duration-days 1 \
   --no-ancestors
 
-echo "Scratch org created. Deploying for validation..."
+echo "Scratch org created: $SCRATCH_ALIAS. Deploying for validation..."
 
 # Deploy all components to scratch org
 sf project deploy start \
-  --target-org sf-agents-validation \
+  --target-org "$SCRATCH_ALIAS" \
   --source-dir force-app
 
 # Run all tests in scratch org
 sf apex run test \
   --test-level RunAllTestsInOrg \
-  --target-org sf-agents-validation \
+  --target-org "$SCRATCH_ALIAS" \
   --code-coverage \
   --result-format human
 ```
@@ -145,7 +148,7 @@ Deleting scratch org...
 ```
 
 ```bash
-sf org delete scratch --target-org sf-agents-validation --no-prompt
+sf org delete scratch --target-org "$SCRATCH_ALIAS" --no-prompt
 ```
 
 Proceed to Step 8.
@@ -153,7 +156,7 @@ Proceed to Step 8.
 **If any test fails — STOP:**
 ```bash
 # Always delete scratch org even on failure
-sf org delete scratch --target-org sf-agents-validation --no-prompt
+sf org delete scratch --target-org "$SCRATCH_ALIAS" --no-prompt
 ```
 
 ```
