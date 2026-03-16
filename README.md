@@ -131,12 +131,27 @@ your-project/
 
 ## Update — existing project
 
+Use this when you have already run `setup-sf-agents.sh` in a project and want to pull the latest agent improvements from GitHub.
+
+**When to run it:**
+- A new version of the agents has been released and you want to upgrade your existing project
+
+**What it does:**
+- Pulls the latest agent `.md` files into `.claude/agents/`
+- Pulls the latest templates into `.claude/templates/`
+- Copies the latest `setup-sf-agents.sh` and `update-sf-agents.sh` scripts into your project root
+- **Never touches** `.claude/agent-memory-local/` or `CLAUDE.md` — your project conventions and learned patterns stay intact
+
 ```bash
 curl -O https://raw.githubusercontent.com/UserBasheer/sf-agents/main/scripts/update-sf-agents.sh
 chmod +x update-sf-agents.sh && ./update-sf-agents.sh
 ```
 
-Safe — never touches your project memory or `CLAUDE.md`.
+After the first run, `update-sf-agents.sh` lives in your project root so future updates are even simpler:
+
+```bash
+./update-sf-agents.sh
+```
 
 ---
 
