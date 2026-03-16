@@ -115,8 +115,14 @@ fi
 # ── Clean up ───────────────────────────────────────────────
 rm -rf "$TMP"
 
-# ── Read API version from sfdx-project.json ───────────────
+# ── Read API version and auto-fill CLAUDE.md ──────────────
 API_VERSION=$(python3 -c "import json; d=json.load(open('sfdx-project.json')); print(d.get('sourceApiVersion',''))" 2>/dev/null || echo "")
+
+if [ -n "$API_VERSION" ]; then
+  sed -i.bak "s/\[fill from sfdx-project.json\]/$API_VERSION/" CLAUDE.md
+  rm -f CLAUDE.md.bak
+  echo -e "${GREEN}API Version auto-filled in CLAUDE.md: $API_VERSION${NC}"
+fi
 
 echo ""
 echo "======================================"
